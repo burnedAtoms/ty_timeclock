@@ -21,7 +21,6 @@ model User {
   tasks Task[]
 
   @@unique([username,email])
-  @@unique([id,allowNotionAccess])
 }
 
 model Password {
@@ -56,7 +55,7 @@ model TimeLog {
 }
 
 model NotionUser{
-  user User @relation(fields: [userId, allowAccess], references: [id, allowNotionAccess])
+  user User @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
   userId String @unique
   accessToken String @unique
@@ -67,6 +66,5 @@ model NotionUser{
   workspaceId String
   
   @@unique([botId, ownerId])
-  @@unique([userId,allowAccess])
 }
 

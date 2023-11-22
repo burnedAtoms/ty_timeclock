@@ -1,10 +1,11 @@
 // api/notion/oauth.js
 import { NotionUser } from '@prisma/client';
 import { LoaderFunctionArgs, json } from '@remix-run/node';
-import { allowUserAccess, createNotionUser } from '~/models/notion.server';
-import { requireUserId } from '~/session.server';
 
-export const loader = async ({ request, params }: LoaderFunctionArgs) => {
+import { allowUserAccess, createNotionUser, findNotionUser, updateAccessToken } from '~/models/notion.server';
+import { getUserId } from '~/session.server';
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
     console.log(code);
@@ -32,16 +33,20 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
     const data = await response.json();
     if(data){
-        const userId = await requireUserId(request);
+        const userId = await getUserId(request);
         const accessToken: NotionUser["accessToken"] = data?.access_token;
         const ownerId: NotionUser["ownerId"] = data?.owner?.user?.id;
         const botId: NotionUser["botId"] = data?.bot_id;
         const workspaceName: NotionUser["workspaceName"] = data?.workspace_name;
         const workspaceId: NotionUser["workspaceId"] = data?.workspace_id;
-        const allowUserNotionAccess = await createNotionUser(userId,accessToken,botId,ownerId,workspaceName,workspaceId);
-        if(allowUserNotionAccess){
-            allowUserAccess(userId);
+        if(!findNotionUser(userId!)){
+          await createNotionUser(userId!,accessToken,botId,ownerId,workspaceName,workspaceId);
+        } else {
+            await allowUserAccess(userId!);
+            await updateAccessToken(userId!,accessToken);
         }
+        
+        
     }
     console.log('OAuth token exchange response:', data);
 

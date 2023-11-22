@@ -1,22 +1,42 @@
 // ... (imports)
 
-import { LoaderFunction } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { ActionFunctionArgs, LoaderFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useState, useEffect } from "react";
+import { useLoaderData } from "@remix-run/react";
+import { useEffect } from "react";
+
 import Header from "~/components/Header";
-import { allowUserAccess, findNotionUser } from "~/models/notion.server";
+import { disconnectNotionUser } from "~/models/notion.server";
+import { getUserId } from "~/session.server";
 import { useUser } from "~/utils";
 
-export const loader: LoaderFunction = async ({ request }) => {
+export const loader: LoaderFunction = async () => {
     const authUrl = process.env.AUTH_URL;
     return json({ authUrl });
   };
+
+export async function action({
+  request,
+}: ActionFunctionArgs) {
+  const body = await request.json();
+  const isDisconnect = body.isDisconnect;
+
+  if (isDisconnect) {
+    // Assuming you have the user ID available
+    const userID = await getUserId(request);
+    
+    // Call the function to disconnect Notion user
+    await disconnectNotionUser(userID!);
+
+    return json({ success: true });
+  }
+
+  return json({ success: false, message: 'Invalid action' }, 400);
+}
   
   const Dashboard = () => {
     const data = useLoaderData<typeof loader>();
     const user = useUser();
-    const [oauthCode, setOAuthCode] = useState("");
   
     useEffect(() => {
       const fetchData = async () => {
@@ -24,9 +44,7 @@ export const loader: LoaderFunction = async ({ request }) => {
         const codeFromUrl = urlParams.get('code');
         console.log(`Code From URL: ${codeFromUrl}`);
   
-        if (codeFromUrl) {
-          setOAuthCode(codeFromUrl);
-  
+        if (codeFromUrl) {  
           try {
             const response = await fetch(`/api/notion/oauth?code=${codeFromUrl}`, {
               method: 'GET',
@@ -48,19 +66,10 @@ export const loader: LoaderFunction = async ({ request }) => {
       fetchData();
     }, []); 
   
-    useEffect(() => {
-      const updateUserAccess = async () => {
-        if (!user.allowNotionAccess && (await findNotionUser(user.id))) {
-          allowUserAccess(user.id);
-        }
-      };
-  
-      updateUserAccess();
-    }, [user]);
   
     return (
       <main className="flex-col min-h-screen min-w-screen">
-        <Header email={user.email} userId={user.id} />
+        <Header email={user.email} />
         <section className="relative min-h-screen min-w-screen bg-gray-600">
           {!user.allowNotionAccess ? (
             <a
