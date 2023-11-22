@@ -1,0 +1,72 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id    String @id @default(cuid())
+  notionUser NotionUser?
+  firstname String
+  surname String
+  username String
+  email String @unique
+  allowNotionAccess Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  password Password?
+  tasks Task[]
+
+  @@unique([username,email])
+  @@unique([id,allowNotionAccess])
+}
+
+model Password {
+  hash String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId String @unique
+}
+
+model Task {
+  id Int @unique @default(autoincrement())
+  taskname String
+  status String @default("Not started")
+  project String?
+  createdAt DateTime @default(now())
+  startedAt DateTime?
+  endedAt DateTime?
+  totalTime String?
+  assignee User @relation(fields: [assigneeId], references: [id])
+  assigneeId String
+  @@unique([id,taskname])
+}
+
+model TimeLog {
+  id String @id @default(cuid())
+  userId String @unique
+  userName String
+  logEntry DateTime @default(now())
+  taskId String @unique
+  taskName String
+  taskStartedAt DateTime
+  taskEndedAt DateTime
+}
+
+model NotionUser{
+  user User @relation(fields: [userId, allowAccess], references: [id, allowNotionAccess])
+  createdAt DateTime @default(now())
+  userId String @unique
+  accessToken String @unique
+  allowAccess Boolean
+  botId String @unique
+  ownerId String @unique
+  workspaceName String
+  workspaceId String
+  
+  @@unique([botId, ownerId])
+  @@unique([userId,allowAccess])
+}
+
