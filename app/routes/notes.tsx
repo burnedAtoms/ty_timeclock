@@ -19,7 +19,7 @@ export default function NotesPage() {
 
   return (
     <div className="flex h-full min-h-screen flex-col">
-      <Header email={user.email} userId=""/>
+      <Header email={user.email} />
       <main className="flex h-full bg-white">
         
       </main>

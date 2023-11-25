@@ -38,7 +38,7 @@ model Task {
   startedAt DateTime?
   endedAt DateTime?
   totalTime String?
-  assignee User @relation(fields: [assigneeId], references: [id])
+  assignee User @relation(fields: [assigneeId], references: [id], onDelete: Cascade)
   assigneeId String
   @@unique([id,taskname])
 }
@@ -55,11 +55,10 @@ model TimeLog {
 }
 
 model NotionUser{
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   userId String @unique
   accessToken String @unique
-  allowAccess Boolean
   botId String @unique
   ownerId String @unique
   workspaceName String

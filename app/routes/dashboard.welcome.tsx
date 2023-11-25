@@ -6,7 +6,7 @@ const Welcome = () => {
     const user = useUser();
   return (
     <main>
-        <Header email={user.email} userId=""/>
+        <Header email={user.email} />
         <section>
             <h1>Welcome</h1>
         </section>

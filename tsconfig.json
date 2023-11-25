@@ -1,6 +1,6 @@
 {
   "exclude": ["./cypress", "./cypress.config.ts"],
-  "include": ["remix.env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["remix.env.d.ts", "**/*.ts", "**/*.tsx", "app/routes/api.notion.oauth/route.ts"],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2020"],
     "types": ["vitest/globals"],

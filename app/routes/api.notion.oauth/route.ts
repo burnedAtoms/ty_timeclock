@@ -12,7 +12,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const clientId = process.env.OAUTH_CLIENT_ID;
   const clientSecret = process.env.OAUTH_CLIENT_SECRET;
-  const redirectUri = process.env.OAUTH_REDIRECT_URI;
+  const redirectUri = decodeURIComponent(process.env.OAUTH_REDIRECT_URI!);
 
   const encoded = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -39,11 +39,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         const botId: NotionUser["botId"] = data?.bot_id;
         const workspaceName: NotionUser["workspaceName"] = data?.workspace_name;
         const workspaceId: NotionUser["workspaceId"] = data?.workspace_id;
-        if(!findNotionUser(userId!)){
+        if(!await findNotionUser(userId!)){
           await createNotionUser(userId!,accessToken,botId,ownerId,workspaceName,workspaceId);
         } else {
-            await allowUserAccess(userId!);
-            await updateAccessToken(userId!,accessToken);
+            if(await updateAccessToken(userId!,accessToken)){
+                await allowUserAccess(userId!);
+            }
         }
         
         
@@ -53,8 +54,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ result: 'OAuth token exchange completed' });
   } catch (error) {
     console.error('Error fetching OAuth token:', error);
-
-    // Return an error response
     return json({ error: 'Failed to fetch OAuth token' }, 500);
   }
 };
