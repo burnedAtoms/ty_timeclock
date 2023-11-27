@@ -2,7 +2,7 @@
 
 
 
-import { ActionFunctionArgs, LoaderFunction, LoaderFunctionArgs , json } from "@remix-run/node";
+import { ActionFunctionArgs, LoaderFunction, LoaderFunctionArgs, json } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
@@ -54,15 +54,15 @@ export async function action({
 
 const Dashboard = () => {
     const data = useLoaderData<typeof loader>();
-    const isDisconnected = useActionData<typeof action>(); 
+    const isDisconnected = useActionData<typeof action>();
     const user = useUser();
     const [tasks, setTasks] = useState([]);
-    const [intervalId,setIntervalId] = useState<NodeJS.Timeout>();
+    const [intervalId, setIntervalId] = useState<NodeJS.Timeout>();
     const [selectedDatabaseId, setSelectedDatabaseId] = useState('');
 
     useEffect(() => {
         //
-    },[isDisconnected?.success]);
+    }, [isDisconnected?.success]);
 
 
     useEffect(() => {
@@ -92,7 +92,7 @@ const Dashboard = () => {
     const handleDatabaseChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
         const databaseId = event.target.value;
         console.log('Database changed');
-        if(intervalId){
+        if (intervalId) {
             clearInterval(intervalId);
         }
 
@@ -107,7 +107,7 @@ const Dashboard = () => {
                 });
 
                 const tasksData = await response.json();
-                
+
 
                 setTasks(tasksData.tasks);
                 //console.log(tasks);
@@ -121,7 +121,7 @@ const Dashboard = () => {
 
     useEffect(() => {
         if (tasks && selectedDatabaseId && data?.allowedAccess?.allowNotionAccess) {
-            if(intervalId){
+            if (intervalId) {
                 clearInterval(intervalId);
             }
             setIntervalId(setInterval(async () => {
@@ -132,7 +132,7 @@ const Dashboard = () => {
                             Accept: 'application/json',
                         },
                     });
-    
+
                     const tasksData = await response.json();
                     setTasks(tasksData.tasks);
                 } catch (error) {
@@ -140,7 +140,15 @@ const Dashboard = () => {
                 }
             }, 5000));
         }
-    },[tasks, selectedDatabaseId, data?.allowedAccess?.allowNotionAccess, intervalId]);
+    }, [tasks, selectedDatabaseId, data?.allowedAccess?.allowNotionAccess]);
+
+    useEffect(() => {
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    });
 
     const filteredDatabases = data?.data?.results.filter((database: any) => {
         return (
@@ -175,13 +183,13 @@ const Dashboard = () => {
                         </select>
 
                         {tasks && tasks.length > 0 ? <div>
-                                <h2 className="text-white mt-6 text-xl font-semibold leading-tight tracking-wider">Tasks:</h2>
-                                <ul>
-                                    {tasks.map((task: any) => (
-                                        <li className="text-slate-300 leading-normal tracking-tighter" key={task.id}>{task.properties['Task name'].title[0].plain_text}</li>
-                                    ))}
-                                </ul>
-                            </div> : null}
+                            <h2 className="text-white mt-6 text-xl font-semibold leading-tight tracking-wider">Tasks:</h2>
+                            <ul>
+                                {tasks.map((task: any) => (
+                                    <li className="text-slate-300 leading-normal tracking-tighter" key={task.id}>{task.properties['Task name'].title[0].plain_text}</li>
+                                ))}
+                            </ul>
+                        </div> : null}
                         {/* You can render additional content based on the selected database and tasks */}
                     </div>
                 )}
