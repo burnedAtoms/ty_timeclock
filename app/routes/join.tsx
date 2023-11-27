@@ -75,7 +75,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const user = await createUser(firstname, surname, email, password);
-
   return createUserSession({
     redirectTo,
     remember: false,
@@ -117,7 +116,6 @@ export default function Join() {
             className="block text-sm font-medium text-gray-700">First Name</label>
             <input 
             type="text" 
-            autoFocus={true}
             name="firstname" 
             required
             aria-invalid={actionData?.errors?.firstname ? true : undefined}

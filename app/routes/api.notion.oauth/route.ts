@@ -8,7 +8,7 @@ import { getUserId } from '~/session.server';
 export const loader = async ({ request }: LoaderFunctionArgs) => {
     const url = new URL(request.url);
     const code = url.searchParams.get('code');
-    console.log(code);
+    // console.log(code);
 
   const clientId = process.env.OAUTH_CLIENT_ID;
   const clientSecret = process.env.OAUTH_CLIENT_SECRET;
@@ -49,7 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         
         
     }
-    console.log('OAuth token exchange response:', data);
+    // console.log('OAuth token exchange response:', data);
 
     return json({ result: 'OAuth token exchange completed' });
   } catch (error) {

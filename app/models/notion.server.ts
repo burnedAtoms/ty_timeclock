@@ -1,17 +1,14 @@
-import { NotionUser, User } from '@prisma/client'
 import { Client } from '@notionhq/client'
+import { NotionUser, User } from '@prisma/client'
 
 import { prisma } from '~/db.server'
-import { getUser, getUserId, requireUserId } from '~/session.server';
-import https from 'https'
-import { al } from 'vitest/dist/reporters-5f784f42';
+import { getSession, getUserId, requireUserId } from '~/session.server';
 
 const notionClientCache: Record<string, { client: Client; accessToken: string }> = {};
 
 export async function getNotionClient(request: Request): Promise<Client> {
     const userId = await requireUserId(request);
     const accessToken = await getAccessToken(userId!);
-    console.log(accessToken?.accessToken);
 
     if (notionClientCache[userId!] && notionClientCache[userId!].accessToken !== accessToken?.accessToken) {
         delete notionClientCache[userId!];
@@ -22,7 +19,7 @@ export async function getNotionClient(request: Request): Promise<Client> {
             client: new Client({
                 auth: accessToken?.accessToken,
             }),
-            accessToken: accessToken?.accessToken || '', // Store the current access token
+            accessToken: accessToken?.accessToken || '', 
         };
     }
 
@@ -105,7 +102,7 @@ export async function disconnectNotionUser(userId: NotionUser["userId"]){
     });
 }
 
-export async function fetchNotionUpdates(request: Request){
-    const notionClient = getNotionClient(request);
-
+export async function setSelectedDatabase(request: Request, databaseId: string) {
+    const session = await getSession(request);
+    session.set('selectedDatabaseId', databaseId);
 }

@@ -1,23 +1,36 @@
 import { LoaderFunctionArgs, json } from "@remix-run/node";
 import invariant from "tiny-invariant";
+
 import { getNotionClient } from "~/models/notion.server";
+import { getSession } from "~/session.server";
 
-export const loader = async ({ params,request }: LoaderFunctionArgs) => {
-  invariant(params.databaseId, "DatabaseId not found");
-  const selectedDatabaseId = params.databaseId;
-  console.log(selectedDatabaseId);
+export const loader = async ({params, request}: LoaderFunctionArgs) => {
+    const session = await getSession(request);
+    invariant(params.databaseId, "Database ID not found");
 
-  try {
-    const notion = await getNotionClient(request);
-    const databaseTasks = await notion.databases.query({
-      database_id: selectedDatabaseId,
-    });
+    const selectedDatabaseId = params.databaseId;
 
-    console.log(databaseTasks);
+    if(session.get('selectedDatabaseId') !== selectedDatabaseId){
+        session.set('selectedDatabaseId',selectedDatabaseId);
+    }
+    
+    if (!selectedDatabaseId) {
+        console.log('No database selected.');
+        return json({ error: 'No database selected.' }, { status: 400 });
+    }
 
-    return json({ tasks: databaseTasks.results });
-  } catch (error) {
-    console.error('Error fetching tasks from Notion:', error);
-    return json({ error: 'Failed to fetch tasks from Notion' }, 500) as never;
-  }
+    const notionClient = await getNotionClient(request);
+    
+    try {
+        const databaseTasks = await notionClient.databases.query({
+            database_id: selectedDatabaseId,
+        });
+
+        //console.log(`Fetched tasks for database ${selectedDatabaseId}:`, databaseTasks.results);
+
+        return json({ tasks: databaseTasks.results });
+    } catch (error) {
+        console.error('Error fetching Notion updates:', error);
+        return json({ error: 'Error fetching Notion updates.' }, { status: 500 });
+    }
 };

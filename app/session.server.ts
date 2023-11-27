@@ -3,8 +3,9 @@ import invariant from "tiny-invariant";
 
 import type { User } from "~/models/user.server";
 import { getUserById } from "~/models/user.server";
+
 import { clearNotionClient } from "./models/notion.server";
-import { error } from "console";
+
 
 invariant(process.env.SESSION_SECRET, "SESSION_SECRET must be set");
 

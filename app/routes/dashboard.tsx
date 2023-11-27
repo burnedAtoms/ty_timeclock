@@ -1,13 +1,13 @@
-// ... (imports)
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Client } from "@notionhq/client";
-import { ActionFunctionArgs, LoaderFunction, LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+
+
+import { ActionFunctionArgs, LoaderFunction, LoaderFunctionArgs , json } from "@remix-run/node";
 import { useActionData, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 import Header from "~/components/Header";
-import { disconnectNotionUser, getAccessToken, getNotionClient, getUserAllowAccess } from "~/models/notion.server";
+import { disconnectNotionUser, getNotionClient, getUserAllowAccess } from "~/models/notion.server";
 import { getUserId } from "~/session.server";
 import { useUser } from "~/utils";
 
@@ -24,7 +24,7 @@ export const loader: LoaderFunction = async ({ request }: LoaderFunctionArgs) =>
         try {
             const response = await getNotionClient(request);
             const data = await response.search({ filter: { property: "object", value: "database" } })
-            console.log(data?.results);
+            //console.log(data?.results);
             return json({ data, allowedAccess });
         } catch (error) {
             console.error('Error fetching data from Notion:', error);
@@ -54,15 +54,15 @@ export async function action({
 
 const Dashboard = () => {
     const data = useLoaderData<typeof loader>();
-    const disconnectUser = useActionData<typeof action>() as any;
-    const [userDisconnected,setUserDisconnect] = useState(data.allowedAccess.allowNotionAccess);
+    const isDisconnected = useActionData<typeof action>(); 
     const user = useUser();
     const [tasks, setTasks] = useState([]);
+    const [intervalId,setIntervalId] = useState<NodeJS.Timeout>();
     const [selectedDatabaseId, setSelectedDatabaseId] = useState('');
 
-    useEffect(()=>{
-        setUserDisconnect(disconnectUser?.success)
-    },[userDisconnected]);
+    useEffect(() => {
+        //
+    },[isDisconnected?.success]);
 
 
     useEffect(() => {
@@ -73,7 +73,7 @@ const Dashboard = () => {
 
             if (codeFromUrl && !data?.allowedAccess?.allowNotionAccess) {
                 try {
-                    const response = await fetch(`/api/notion/oauth?code=${codeFromUrl}`, {
+                    await fetch(`/api/notion/oauth?code=${codeFromUrl}`, {
                         method: 'GET',
                         headers: {
                             Accept: 'application/json',
@@ -88,12 +88,15 @@ const Dashboard = () => {
         fetchData();
     }, [data?.allowedAccess?.allowNotionAccess]);
 
+
     const handleDatabaseChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
         const databaseId = event.target.value;
         console.log('Database changed');
+        if(intervalId){
+            clearInterval(intervalId);
+        }
 
         setSelectedDatabaseId(databaseId);
-
         if (databaseId) {
             try {
                 const response = await fetch(`/api/notion/${databaseId}/tasks`, {
@@ -104,10 +107,10 @@ const Dashboard = () => {
                 });
 
                 const tasksData = await response.json();
-                //console.log(tasksData);
+                
 
                 setTasks(tasksData.tasks);
-                console.log(tasks);
+                //console.log(tasks);
             } catch (error) {
                 console.error('Error fetching tasks from Notion:', error);
             }
@@ -117,8 +120,27 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
-        console.log('Updated tasks state:', tasks);
-    }, [tasks]);
+        if (tasks && selectedDatabaseId && data?.allowedAccess?.allowNotionAccess) {
+            if(intervalId){
+                clearInterval(intervalId);
+            }
+            setIntervalId(setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/notion/${selectedDatabaseId}/tasks`, {
+                        method: 'GET',
+                        headers: {
+                            Accept: 'application/json',
+                        },
+                    });
+    
+                    const tasksData = await response.json();
+                    setTasks(tasksData.tasks);
+                } catch (error) {
+                    console.error('Error fetching tasks from Notion:', error);
+                }
+            }, 5000));
+        }
+    },[tasks, selectedDatabaseId, data?.allowedAccess?.allowNotionAccess, intervalId]);
 
     const filteredDatabases = data?.data?.results.filter((database: any) => {
         return (
@@ -126,6 +148,8 @@ const Dashboard = () => {
             database.properties['Tiaoyueh Time Clock']
         );
     });
+
+
 
     return (
         <main className="flex-col min-h-screen min-w-screen">
@@ -150,16 +174,14 @@ const Dashboard = () => {
                             ))}
                         </select>
 
-                        {tasks && tasks.length > 0 && (
-                            <div>
+                        {tasks && tasks.length > 0 ? <div>
                                 <h2 className="text-white mt-6 text-xl font-semibold leading-tight tracking-wider">Tasks:</h2>
                                 <ul>
                                     {tasks.map((task: any) => (
                                         <li className="text-slate-300 leading-normal tracking-tighter" key={task.id}>{task.properties['Task name'].title[0].plain_text}</li>
                                     ))}
                                 </ul>
-                            </div>
-                        )}
+                            </div> : null}
                         {/* You can render additional content based on the selected database and tasks */}
                     </div>
                 )}
