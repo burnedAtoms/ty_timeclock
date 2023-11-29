@@ -1,8 +1,8 @@
 import { LoaderFunctionArgs, json } from "@remix-run/node";
 import invariant from "tiny-invariant";
 
-import { getNotionClient } from "~/models/notion.server";
-import { getSession } from "~/session.server";
+import { getNotionClient, getOwnerId } from "~/models/notion.server";
+import { getSession, requireUserId } from "~/session.server";
 
 export const loader = async ({params, request}: LoaderFunctionArgs) => {
     const session = await getSession(request);
@@ -20,15 +20,20 @@ export const loader = async ({params, request}: LoaderFunctionArgs) => {
     }
 
     const notionClient = await getNotionClient(request);
+    const assigneeId = await getOwnerId(await requireUserId(request));
     
     try {
+      if(assigneeId){
         const databaseTasks = await notionClient.databases.query({
-            database_id: selectedDatabaseId,
+          database_id: selectedDatabaseId,
+          filter: {
+            and: [
+              { property: 'Assignee', people: { contains: assigneeId?.ownerId}},
+            ],
+          },
         });
-
-        //console.log(`Fetched tasks for database ${selectedDatabaseId}:`, databaseTasks.results);
-
         return json({ tasks: databaseTasks.results });
+      }  
     } catch (error) {
         console.error('Error fetching Notion updates:', error);
         return json({ error: 'Error fetching Notion updates.' }, { status: 500 });

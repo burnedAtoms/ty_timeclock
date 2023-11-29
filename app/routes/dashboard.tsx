@@ -3,11 +3,11 @@
 
 
 import { ActionFunctionArgs, LoaderFunction, LoaderFunctionArgs, json } from "@remix-run/node";
-import { useActionData, useLoaderData } from "@remix-run/react";
+import { Form, useActionData, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 import Header from "~/components/Header";
-import { disconnectNotionUser, getNotionClient, getUserAllowAccess } from "~/models/notion.server";
+import { NotionOauth, disconnectNotionUser, getNotionClient, getUserAllowAccess } from "~/models/notion.server";
 import { getUserId } from "~/session.server";
 import { useUser } from "~/utils";
 
@@ -15,6 +15,11 @@ export const loader: LoaderFunction = async ({ request }: LoaderFunctionArgs) =>
     const authUrl = process.env.AUTH_URL;
     let allowedAccess;
     const user = await getUserId(request);
+    const url = new URL(request.url);
+    const code = url.searchParams.get('code');
+    if (code) {
+        await NotionOauth(request, code!);
+    }
 
     if (user) {
         allowedAccess = await getUserAllowAccess(user!);
@@ -43,9 +48,7 @@ export async function action({
 
     if (isDisconnect) {
         const userID = await getUserId(request);
-
         await disconnectNotionUser(userID!);
-
         return json({ success: true });
     }
 
@@ -55,38 +58,20 @@ export async function action({
 const Dashboard = () => {
     const data = useLoaderData<typeof loader>();
     const isDisconnected = useActionData<typeof action>();
+    const [disconnectNotion, setDisconnectNotion] = useState<boolean>(false);
     const user = useUser();
     const [tasks, setTasks] = useState([]);
     const [intervalId, setIntervalId] = useState<NodeJS.Timeout>();
     const [selectedDatabaseId, setSelectedDatabaseId] = useState('');
-
-    useEffect(() => {
-        //
-    }, [isDisconnected?.success]);
+    const [isRunning, setRunning] = useState<boolean>(false);
 
 
     useEffect(() => {
-        const fetchData = async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const codeFromUrl = urlParams.get('code');
-            console.log(`Code From URL: ${codeFromUrl}`);
-
-            if (codeFromUrl && !data?.allowedAccess?.allowNotionAccess) {
-                try {
-                    await fetch(`/api/notion/oauth?code=${codeFromUrl}`, {
-                        method: 'GET',
-                        headers: {
-                            Accept: 'application/json',
-                        },
-                    });
-                } catch (error) {
-                    console.error('Error fetching OAuth token:', error);
-                }
-            }
-        };
-
-        fetchData();
-    }, [data?.allowedAccess?.allowNotionAccess]);
+        console.log("disconnectNotion changed:", disconnectNotion);
+        if (isDisconnected?.success !== disconnectNotion) {
+            setDisconnectNotion(isDisconnected?.success);
+        }
+    }, [disconnectNotion, isDisconnected?.success, setDisconnectNotion]);
 
 
     const handleDatabaseChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -110,7 +95,7 @@ const Dashboard = () => {
 
 
                 setTasks(tasksData.tasks);
-                //console.log(tasks);
+                console.log(tasks);
             } catch (error) {
                 console.error('Error fetching tasks from Notion:', error);
             }
@@ -135,6 +120,7 @@ const Dashboard = () => {
 
                     const tasksData = await response.json();
                     setTasks(tasksData.tasks);
+                    console.log(tasksData.tasks);
                 } catch (error) {
                     console.error('Error fetching tasks from Notion:', error);
                 }
@@ -142,11 +128,16 @@ const Dashboard = () => {
         }
     }, [tasks, selectedDatabaseId, data?.allowedAccess?.allowNotionAccess]);
 
+    function unmountInterval() {
+        if (intervalId) {
+            clearInterval(intervalId);
+        }
+    }
+
+
     useEffect(() => {
         return () => {
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
+            unmountInterval();
         };
     });
 
@@ -163,36 +154,41 @@ const Dashboard = () => {
         <main className="flex-col min-h-screen min-w-screen">
             <Header email={user.email} />
             <section className="relative min-h-screen min-w-screen bg-gray-600">
-                {!user.allowNotionAccess ? (
-                    <a
-                        href={data?.authUrl}
-                        className="bg-green-400 py-3 px-4 rounded-lg border-none hover:bg-white hover:text-green-600"
-                    >
-                        Quick Setup
-                    </a>
-                ) : (
-                    <div className="px-4">
-                        <h1 className="text-white font-bold font-sans text-2xl py-8">Welcome {user.username}</h1>
-                        <select id="databaseSelector" value={selectedDatabaseId} onChange={handleDatabaseChange}>
-                            <option value="">-- Select a Database --</option>
-                            {filteredDatabases?.map((database: any) => (
-                                <option key={database.id} value={database.id}>
-                                    {database.title[0].plain_text}
-                                </option>
-                            ))}
-                        </select>
+                {(!user.allowNotionAccess || disconnectNotion) ? <a
+                    href={data?.authUrl}
+                    className="bg-green-400 py-3 px-4 rounded-lg border-none hover:bg-white hover:text-green-600"
+                >
+                    Quick Setup
+                </a> : null}
+                {(user.allowNotionAccess && !disconnectNotion) ? <div className="px-4">
+                    <h1 className="text-white font-bold font-sans text-2xl py-8">Welcome {user.username}</h1>
+                    <select id="databaseSelector" value={selectedDatabaseId} onChange={handleDatabaseChange}>
+                        <option value="">-- Select a Database --</option>
+                        {filteredDatabases?.map((database: any) => (
+                            <option key={database.id} value={database.id}>
+                                {database.title[0].plain_text}
+                            </option>
+                        ))}
+                    </select>
 
-                        {tasks && tasks.length > 0 ? <div>
-                            <h2 className="text-white mt-6 text-xl font-semibold leading-tight tracking-wider">Tasks:</h2>
-                            <ul>
-                                {tasks.map((task: any) => (
-                                    <li className="text-slate-300 leading-normal tracking-tighter" key={task.id}>{task.properties['Task name'].title[0].plain_text}</li>
-                                ))}
-                            </ul>
-                        </div> : null}
-                        {/* You can render additional content based on the selected database and tasks */}
-                    </div>
-                )}
+                    {tasks && tasks.length > 0 ? <div>
+                        <h2 className="text-white mt-6 text-xl font-semibold leading-tight tracking-wider">Tasks:</h2>
+                        <ul>
+                            {tasks.map((task: any) => (
+                                <li className="text-slate-300 leading-normal tracking-tighter py-4" key={task.id}>
+                                    <h3>{task.properties['Task name'].title[0].plain_text}</h3>
+                                    <h3>{task.properties.Status.status.name}</h3>
+                                    <h3>{task.properties['Tiaoyueh Time Clock'].rich_text[0].plain_text}</h3>
+                                    <Form action={isRunning ? "/stopTimer" : "/startTimer"} method="post">
+                                        <button>{isRunning ? 'Stop Timer' : 'Start Timer'}</button>
+                                    </Form>
+
+                                </li>
+                            ))}
+                        </ul>
+                    </div> : null}
+                    {/* You can render additional content based on the selected database and tasks */}
+                </div> : null}
             </section>
         </main>
     );

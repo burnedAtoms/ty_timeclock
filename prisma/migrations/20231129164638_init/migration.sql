@@ -21,6 +21,7 @@ CREATE TABLE "Password" (
 -- CreateTable
 CREATE TABLE "Task" (
     "id" SERIAL NOT NULL,
+    "taskId" TEXT NOT NULL,
     "taskname" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'Not started',
     "project" TEXT,
@@ -50,7 +51,6 @@ CREATE TABLE "NotionUser" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "userId" TEXT NOT NULL,
     "accessToken" TEXT NOT NULL,
-    "allowAccess" BOOLEAN NOT NULL,
     "botId" TEXT NOT NULL,
     "ownerId" TEXT NOT NULL,
     "workspaceName" TEXT NOT NULL,
@@ -64,16 +64,16 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_username_email_key" ON "User"("username", "email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_id_allowNotionAccess_key" ON "User"("id", "allowNotionAccess");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Password_userId_key" ON "Password"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Task_id_key" ON "Task"("id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Task_id_taskname_key" ON "Task"("id", "taskname");
+CREATE UNIQUE INDEX "Task_taskId_key" ON "Task"("taskId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Task_taskId_taskname_key" ON "Task"("taskId", "taskname");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TimeLog_userId_key" ON "TimeLog"("userId");
@@ -96,14 +96,11 @@ CREATE UNIQUE INDEX "NotionUser_ownerId_key" ON "NotionUser"("ownerId");
 -- CreateIndex
 CREATE UNIQUE INDEX "NotionUser_botId_ownerId_key" ON "NotionUser"("botId", "ownerId");
 
--- CreateIndex
-CREATE UNIQUE INDEX "NotionUser_userId_allowAccess_key" ON "NotionUser"("userId", "allowAccess");
-
 -- AddForeignKey
 ALTER TABLE "Password" ADD CONSTRAINT "Password_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Task" ADD CONSTRAINT "Task_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Task" ADD CONSTRAINT "Task_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "NotionUser"("ownerId") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "NotionUser" ADD CONSTRAINT "NotionUser_userId_allowAccess_fkey" FOREIGN KEY ("userId", "allowAccess") REFERENCES "User"("id", "allowNotionAccess") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "NotionUser" ADD CONSTRAINT "NotionUser_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

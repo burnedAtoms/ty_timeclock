@@ -6,8 +6,6 @@ interface Props {
     email: User["email"],
 }
 
-
-
 const Header = ({ email }: Props): JSX.Element => {
 
     async function handleDisconnect() {
@@ -21,10 +19,8 @@ const Header = ({ email }: Props): JSX.Element => {
                     isDisconnect: true
                 })
             });
-
             const responseData = await response.json();
             console.log('Disconnect response:', responseData);
-
         } catch (error) {
             console.error('Error disconnecting Notion:', error);
         }
