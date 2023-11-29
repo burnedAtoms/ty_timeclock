@@ -18,7 +18,6 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   password Password?
-  tasks Task[]
 
   @@unique([username,email])
 }
@@ -31,6 +30,7 @@ model Password {
 
 model Task {
   id Int @unique @default(autoincrement())
+  taskId String @unique
   taskname String
   status String @default("Not started")
   project String?
@@ -38,9 +38,9 @@ model Task {
   startedAt DateTime?
   endedAt DateTime?
   totalTime String?
-  assignee User @relation(fields: [assigneeId], references: [id])
+  assignee NotionUser @relation(fields: [assigneeId], references: [ownerId])
   assigneeId String
-  @@unique([id,taskname])
+  @@unique([taskId,taskname])
 }
 
 model TimeLog {
@@ -56,10 +56,10 @@ model TimeLog {
 
 model NotionUser{
   user User @relation(fields: [userId], references: [id])
+  tasks Task[]
   createdAt DateTime @default(now())
   userId String @unique
   accessToken String @unique
-  allowAccess Boolean
   botId String @unique
   ownerId String @unique
   workspaceName String

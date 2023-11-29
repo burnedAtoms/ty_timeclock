@@ -10,13 +10,11 @@ async function seed() {
   const username = String(firstname+surname).toLocaleLowerCase();
 
   // cleanup the existing database
-  await prisma.user.delete({ where: { email } }).catch(() => {
-    // no worries if it doesn't exist yet
-  });
+  await prisma.user.deleteMany({});
 
   const hashedPassword = await bcrypt.hash("racheliscool", 10);
 
-  const user = await prisma.user.create({
+  await prisma.user.create({
     data: {
       firstname,
       surname,
