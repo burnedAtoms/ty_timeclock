@@ -3,12 +3,14 @@
 
 
 import { ActionFunctionArgs, LoaderFunction, LoaderFunctionArgs, json } from "@remix-run/node";
-import { Form, useActionData, useLoaderData } from "@remix-run/react";
+import { useActionData, useLoaderData } from "@remix-run/react";
 import { useEffect, useState } from "react";
 
 import Header from "~/components/Header";
 import { NotionOauth, disconnectNotionUser, getNotionClient, getUserAllowAccess } from "~/models/notion.server";
-import { getUserId } from "~/session.server";
+import { handleStartTimer } from "~/models/timer/functions/startTimer";
+import { SELECTED_DATABASE_KEY, getUserId } from "~/session.server";
+import { PROPERTY_TY_TIMECLOCK } from "~/strings/app_strings";
 import { useUser } from "~/utils";
 
 export const loader: LoaderFunction = async ({ request }: LoaderFunctionArgs) => {
@@ -73,6 +75,13 @@ const Dashboard = () => {
         }
     }, [disconnectNotion, isDisconnected?.success, setDisconnectNotion]);
 
+    useEffect(() => {
+        const storedDatabaseId = localStorage.getItem(SELECTED_DATABASE_KEY);
+        if (storedDatabaseId) {
+            setSelectedDatabaseId(storedDatabaseId);
+        }
+    }, []);
+
 
     const handleDatabaseChange = async (event: React.ChangeEvent<HTMLSelectElement>) => {
         const databaseId = event.target.value;
@@ -82,6 +91,7 @@ const Dashboard = () => {
         }
 
         setSelectedDatabaseId(databaseId);
+        localStorage.setItem(SELECTED_DATABASE_KEY, databaseId);
         if (databaseId) {
             try {
                 const response = await fetch(`/api/notion/${databaseId}/tasks`, {
@@ -104,6 +114,9 @@ const Dashboard = () => {
         }
     };
 
+
+
+
     useEffect(() => {
         if (tasks && selectedDatabaseId && data?.allowedAccess?.allowNotionAccess) {
             if (intervalId) {
@@ -120,13 +133,28 @@ const Dashboard = () => {
 
                     const tasksData = await response.json();
                     setTasks(tasksData.tasks);
-                    console.log(tasksData.tasks);
                 } catch (error) {
                     console.error('Error fetching tasks from Notion:', error);
                 }
             }, 5000));
         }
-    }, [tasks, selectedDatabaseId, data?.allowedAccess?.allowNotionAccess]);
+    }, [tasks,selectedDatabaseId]);
+
+
+    useEffect(() => {
+        async function updateTimer() {
+            if (tasks && !isRunning) {
+                const response = await handleStartTimer(tasks);
+                if(response!){
+                    console.log(response);
+                    setRunning(response?.running);
+                }
+                
+            }
+        }
+
+        updateTimer();
+    });
 
     function unmountInterval() {
         if (intervalId) {
@@ -178,11 +206,7 @@ const Dashboard = () => {
                                 <li className="text-slate-300 leading-normal tracking-tighter py-4" key={task.id}>
                                     <h3>{task.properties['Task name'].title[0].plain_text}</h3>
                                     <h3>{task.properties.Status.status.name}</h3>
-                                    <h3>{task.properties['Tiaoyueh Time Clock'].rich_text[0].plain_text}</h3>
-                                    <Form action={isRunning ? "/stopTimer" : "/startTimer"} method="post">
-                                        <button>{isRunning ? 'Stop Timer' : 'Start Timer'}</button>
-                                    </Form>
-
+                                    <h3>{task.properties[PROPERTY_TY_TIMECLOCK].rich_text[0].plain_text}</h3>
                                 </li>
                             ))}
                         </ul>
@@ -195,3 +219,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

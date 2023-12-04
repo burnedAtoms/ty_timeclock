@@ -14,6 +14,11 @@ export async function NotionOauth(request: Request, code: string) {
     const clientId = process.env.OAUTH_CLIENT_ID;
     const clientSecret = process.env.OAUTH_CLIENT_SECRET;
     const redirectUri = decodeURIComponent(process.env.OAUTH_REDIRECT_URI!);
+    const bodyContent = new Map(Object.entries({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: redirectUri,
+    }))
 
     const encoded = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 
@@ -25,11 +30,7 @@ export async function NotionOauth(request: Request, code: string) {
                 'Content-Type': 'application/json',
                 Authorization: `Basic ${encoded}`,
             },
-            body: JSON.stringify({
-                grant_type: 'authorization_code',
-                code: code,
-                redirect_uri: redirectUri,
-            }),
+            body: JSON.stringify(Object.fromEntries(bodyContent)),
         });
 
         const data = await response.json();
@@ -171,7 +172,7 @@ export async function setSelectedDatabase(request: Request, databaseId: string) 
 
 export async function getNotionTimes(databaseResponse: QueryDatabaseResponse): Promise<{ taskId: string; timeInSeconds: number }[]> {
     try {
-        
+
 
         const tasks = databaseResponse.results;
 
@@ -191,17 +192,50 @@ export async function getNotionTimes(databaseResponse: QueryDatabaseResponse): P
     }
 }
 
+export async function setNotionTYTimeClock(request: Request, formattedTime: string, taskId: string, isRunning: boolean) {
+    const client: Client = await getNotionClient(request);
+
+    try {
+        const response = await client.pages.update({
+            page_id: taskId,
+            properties: {
+                'Tiaoyueh Time Clock': {
+                    "rich_text": [
+                        {
+                            "type": "text",
+                            "text": {
+                                "content": formattedTime,
+                            },
+                            "annotations": {
+                                "bold": true,
+                                "color": isRunning ? "red" : "gray"
+                            },
+                            "plain_text": formattedTime,
+                        },
+                    ]
+                },
+            }
+        });
+        if(response){
+            console.log("Notion time updated successfully.");
+        }
+    } catch {
+        console.error("Failed to updated time in notion", 500);
+    }
+    
+}
+
 
 export async function getTaskTime(data: GetDatabaseResponse): Promise<number> {
     try {
         const response = data;
         const properties = response.properties;
 
-        const timeProperty:Record<string, any> = properties['Tiaoyueh Time Clock'];
+        const timeProperty: Record<string, any> = properties['Tiaoyueh Time Clock'];
 
         if (timeProperty && timeProperty.type === 'rich_text') {
             const timeText = timeProperty.rich_text[0]?.plain_text || '';
-            const timeInSeconds = convertNotionTimeToSeconds(timeText);
+            const timeInSeconds = timeStringToSeconds(timeText);
             return timeInSeconds;
         }
 
@@ -212,18 +246,21 @@ export async function getTaskTime(data: GetDatabaseResponse): Promise<number> {
     }
 }
 
-export function convertNotionTimeToSeconds(notionTime: string): number {
-    const [hours, minutes] = notionTime.split(' ');
+export function timeStringToSeconds(formattedTime: string): number {
+    const regex = /^(\d+)h (\d+)m$/;
+    const match = formattedTime.match(regex);
 
-    const hoursValue = parseInt(hours) || 0;
-    const minutesValue = parseInt(minutes) || 0;
+    if (!match) {
+        throw new Error("Invalid formatted time string");
+    }
 
-    const totalSeconds = hoursValue * 3600 + minutesValue * 60;
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
 
-    return totalSeconds;
+    return hours * 3600 + minutes * 60;
 }
 
-export async function getOwnerId(userId: NotionUser["userId"]){
+export async function getOwnerId(userId: NotionUser["userId"]) {
     return prisma.notionUser.findUnique({
         where: { userId },
         select: {
@@ -235,7 +272,7 @@ export async function getOwnerId(userId: NotionUser["userId"]){
 export async function createTask(taskId: Task["taskId"],
     taskname: Task["taskname"],
     status: Task["status"],
-    assigneeId: Task["assigneeId"]){
+    assigneeId: Task["assigneeId"]) {
     return prisma.task.create({
         data: {
             assignee: {
@@ -243,9 +280,13 @@ export async function createTask(taskId: Task["taskId"],
                     ownerId: assigneeId
                 }
             },
-            taskId, 
+            taskId,
             taskname,
             status,
         }
     });
+}
+
+export async function notionUpdateTYTimeClock() {
+    //
 }

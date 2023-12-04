@@ -21,6 +21,7 @@ export const sessionStorage = createCookieSessionStorage({
 });
 
 const USER_SESSION_KEY = "userId";
+export const SELECTED_DATABASE_KEY = "selectedDatabaseId";
 
 export async function getSession(request: Request) {
   const cookie = request.headers.get("Cookie");
@@ -88,6 +89,18 @@ export async function createUserSession({
       }),
     },
   });
+}
+
+
+export async function getSelectedDatabaseId(request: Request) {
+  const session = await getSession(request);
+  return session.get(SELECTED_DATABASE_KEY);
+}
+
+export async function setSelectedDatabaseId(request: Request, databaseId: string) {
+  const session = await getSession(request);
+  session.set(SELECTED_DATABASE_KEY, databaseId);
+  await sessionStorage.commitSession(session);
 }
 
 export async function logout(request: Request) {
