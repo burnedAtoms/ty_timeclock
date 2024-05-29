@@ -46,16 +46,35 @@ export async function NotionOauth(request: Request, code: string) {
                     await allowUserAccess(userId!);
                 }
             } else {
-                if (await updateAccessToken(userId!, accessToken)) {
-                    await allowUserAccess(userId!);
-                }
+                await updateAccessToken(userId!, accessToken).then( (response) => {
+                    if(!response){
+                        throw new Error("Failed to update access token");
+                    }
+                }).then(async () => {
+                    await allowUserAccess(userId!).then((response) => {
+                        if(!response){
+                            throw new Error("User access denied.");
+                        }
+                    }).then((res) => {
+                        return res;
+                    }).catch( (err) => {console.error(err)})
+                }).finally(async () => {
+                    //console.log(request.url);
+                    notionClientCache[userId!] = {
+                        client: new Client({
+                            auth: accessToken,
+                        }),
+                        accessToken: accessToken || '',
+                    };
+                    console.log('OAuth token exchange response:', data);
+                    return await searchDatabases(userId!);
+                }).catch((err) =>  {
+                    console.error(err)
+                })
+                
             }
-
-
         }
-        console.log('OAuth token exchange response:', data);
-
-        return json({ result: 'OAuth token exchange completed' });
+        
     } catch (error) {
         console.error('Error fetching OAuth token:', error);
 
@@ -63,15 +82,28 @@ export async function NotionOauth(request: Request, code: string) {
     }
 }
 
+export async function deleteNotionClient(userId:User["id"]){
+    return delete notionClientCache[userId];
+}
+
+export async function searchDatabases(userId:User["id"]){
+    return await notionClientCache[userId].client.search({filter: { property: "object", value: "database" } });
+}
+
 export async function getNotionClient(request: Request): Promise<Client> {
     const userId = await requireUserId(request);
-    const accessToken = await getAccessToken(userId!);
+    let accessToken;
+    if(userId){
+        accessToken  = await getAccessToken(userId!);
+    }
 
     if (notionClientCache[userId!] && notionClientCache[userId!].accessToken !== accessToken?.accessToken) {
+        console.log('Clearing cache entry for userId:', userId);
         delete notionClientCache[userId!];
     }
 
     if (!notionClientCache[userId!] || notionClientCache[userId!].accessToken !== accessToken?.accessToken) {
+        console.log('Creating new client for userId:', userId);
         notionClientCache[userId!] = {
             client: new Client({
                 auth: accessToken?.accessToken,
@@ -122,6 +154,7 @@ export async function allowUserAccess(userID: User["id"]) {
 }
 
 export async function updateAccessToken(userID: NotionUser["userId"], accessToken: NotionUser["accessToken"]) {
+    
     return prisma.notionUser.update({
         where: { userId: userID },
         data: {
@@ -178,7 +211,7 @@ export async function getNotionTimes(databaseResponse: QueryDatabaseResponse): P
 
         // Extract time for each task
         const tasksWithTime = await Promise.all(
-            tasks.map(async (task) => {
+            tasks.map(async (task: any) => {
                 const taskId = task.id;
                 const timeInSeconds = await getTaskTime(task);
                 return { taskId, timeInSeconds };
@@ -285,8 +318,4 @@ export async function createTask(taskId: Task["taskId"],
             status,
         }
     });
-}
-
-export async function notionUpdateTYTimeClock() {
-    //
 }

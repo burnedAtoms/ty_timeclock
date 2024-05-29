@@ -1,3 +1,4 @@
+import { Client } from "@notionhq/client";
 import { createCookieSessionStorage, redirect } from "@remix-run/node";
 import invariant from "tiny-invariant";
 
@@ -22,6 +23,7 @@ export const sessionStorage = createCookieSessionStorage({
 
 const USER_SESSION_KEY = "userId";
 export const SELECTED_DATABASE_KEY = "selectedDatabaseId";
+export const NOTIONCLIENT = "NotionClient";
 
 export async function getSession(request: Request) {
   const cookie = request.headers.get("Cookie");
@@ -89,6 +91,20 @@ export async function createUserSession({
       }),
     },
   });
+}
+
+export async function setClientSession(request: Request,client: Client){
+  const session = await getSession(request);
+  session.set(NOTIONCLIENT, client);
+  console.log('Client set in session:', client);
+  await sessionStorage.commitSession(session);
+}
+
+export async function getClientSession(request: Request){
+  const session = await getSession(request);
+  const clientSession = session.get(NOTIONCLIENT);
+  console.log('Notion Client from session:', clientSession);
+  return clientSession;
 }
 
 

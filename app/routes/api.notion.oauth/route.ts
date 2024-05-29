@@ -1,14 +1,15 @@
 // api/notion/oauth.js
 import { NotionUser } from '@prisma/client';
-import { LoaderFunctionArgs, json } from '@remix-run/node';
+import { LoaderFunctionArgs, json, redirect } from '@remix-run/node';
+import invariant from 'tiny-invariant';
 
 import { allowUserAccess, createNotionUser, findNotionUser, updateAccessToken } from '~/models/notion.server';
 import { getUserId } from '~/session.server';
 
-export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  console.log(code);
+export const loader = async ({ params,request }: LoaderFunctionArgs) => {
+  invariant(params.code, "code not found");
+
+  const code = params.code;
 
   const clientId = process.env.OAUTH_CLIENT_ID;
   const clientSecret = process.env.OAUTH_CLIENT_SECRET;
@@ -47,6 +48,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             }
         }
         
+        return redirect('/dashboard');
         
     }
     console.log('OAuth token exchange response:', data);
